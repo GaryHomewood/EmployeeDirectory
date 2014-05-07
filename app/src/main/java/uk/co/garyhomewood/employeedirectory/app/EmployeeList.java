@@ -65,50 +65,61 @@ public class EmployeeList extends Fragment {
         @Override
         protected List<Employee> doInBackground(Void... voids) {
             List<Employee> employees = new ArrayList<Employee>();
-            URL url;
-            HttpURLConnection connection = null;
-            String html = "";
 
-            try {
-                url = new URL("http://www.theappbusiness.com/our-team/");
-                connection = (HttpURLConnection) url.openConnection();
-            } catch (Exception ex) {
-                Log.e(TAG, "error connecting");
-            }
+            EmployeeDirectoryApplication app = (EmployeeDirectoryApplication) getActivity().getApplication();
 
-            if (connection != null) {
-                int httpStatus;
+            List<Employee> cachedEmployees = app.getEmployees();
+
+            if (cachedEmployees.size() == 0) {
+                URL url;
+                HttpURLConnection connection = null;
+                String html = "";
+
                 try {
-                    InputStream in = new BufferedInputStream(connection.getInputStream());
-                    httpStatus = connection.getResponseCode();
-                    html = readStream(in);
-                } catch (IOException ex) {
-                    Log.e(TAG, "error streaming response");
-                } finally {
-                    connection.disconnect();
+                    url = new URL("http://www.theappbusiness.com/our-team/");
+                    connection = (HttpURLConnection) url.openConnection();
+                } catch (Exception ex) {
+                    Log.e(TAG, "error connecting");
                 }
-            }
 
-            if (html.length() > 0) {
-                Document doc = Jsoup.parse(html);
-                Elements employeeElements = doc.select("#users>div>div>div");
-
-                for (Element employeeElement : employeeElements) {
-                    Employee e = new Employee();
-                    e.setName(employeeElement.select("h3").text());
-                    e.setPhotoUrl(employeeElement.select("div.title > img").attr("src"));
-                    e.setTitle(employeeElement.select("p").first().text());
-                    e.setBio(employeeElement.select("p.user-description").text());
-                    employees.add(e);
+                if (connection != null) {
+                    int httpStatus;
+                    try {
+                        InputStream in = new BufferedInputStream(connection.getInputStream());
+                        httpStatus = connection.getResponseCode();
+                        html = readStream(in);
+                    } catch (IOException ex) {
+                        Log.e(TAG, "error streaming response");
+                    } finally {
+                        connection.disconnect();
+                    }
                 }
-            }
 
-            return employees;
+                if (html.length() > 0) {
+                    Document doc = Jsoup.parse(html);
+                    Elements employeeElements = doc.select("#users>div>div>div");
+
+                    for (Element employeeElement : employeeElements) {
+                        Employee e = new Employee();
+                        e.setName(employeeElement.select("h3").text());
+                        e.setPhotoUrl(employeeElement.select("div.title > img").attr("src"));
+                        e.setTitle(employeeElement.select("p").first().text());
+                        e.setBio(employeeElement.select("p.user-description").text());
+                        employees.add(e);
+                    }
+                }
+
+                app.setEmployees(employees);
+
+                return employees;
+            } else {
+                return cachedEmployees;
+            }
         }
 
         private String readStream(InputStream in) throws IOException {
             byte[] buf = new byte[1024];
-            int count = 0;
+            int count;
             ByteArrayOutputStream out = new ByteArrayOutputStream(1024);
             while ((count = in.read(buf)) != -1) {
                 out.write(buf, 0, count);
